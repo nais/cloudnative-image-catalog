@@ -1,0 +1,5 @@
+#!/usr/bin/bash
+# [MISE] description="Clone cloudnative-pg/artifacts to the artifacts directory. Used locally."
+# [MISE] outputs=["artifacts"]
+
+git clone git@github.com:cloudnative-pg/artifacts.git

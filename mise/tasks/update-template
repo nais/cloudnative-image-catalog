@@ -1,0 +1,77 @@
+#!/usr/bin/bash
+# [MISE] description="Update the clusterimagecatalog in the chart with values from the cloudnative-pg artifacts"
+# [MISE] outputs=["charts/cloudnative-image-catalog/templates/clusterimagecatalog.yaml"]
+
+set -euo pipefail
+
+catalog_dir="artifacts/image-catalogs"
+catalog_file="${catalog_dir}/catalog-${IMAGE_TYPE:?IMAGE_TYPE is required}-${DEBIAN_RELEASE:?DEBIAN_RELEASE is required}.yaml"
+template_file="charts/cloudnative-image-catalog/templates/clusterimagecatalog.yaml"
+versions_raw="${POSTGRES_VERSIONS:?POSTGRES_VERSIONS is required}"
+
+if [[ ! -f "${catalog_file}" ]]; then
+  echo "Catalog file not found: ${catalog_file}" >&2
+  exit 1
+fi
+
+# Build a unique, validated list of requested major versions.
+declare -A seen_majors=()
+declare -a majors=()
+IFS=',' read -r -a requested_versions <<< "${versions_raw}"
+for version in "${requested_versions[@]}"; do
+  version="$(echo "${version}" | xargs)"
+  [[ -z "${version}" ]] && continue
+
+  if [[ ! "${version}" =~ ^[0-9]+$ ]]; then
+    echo "Invalid major version in POSTGRES_VERSIONS: '${version}'" >&2
+    exit 1
+  fi
+
+  if [[ -z "${seen_majors[${version}]:-}" ]]; then
+    seen_majors["${version}"]=1
+    majors+=("${version}")
+  fi
+done
+
+if [[ ${#majors[@]} -eq 0 ]]; then
+  echo "POSTGRES_VERSIONS did not contain any valid major versions" >&2
+  exit 1
+fi
+
+majors_csv="$(IFS=, ; echo "${majors[*]}")"
+major_filter=""
+for major in "${majors[@]}"; do
+  if [[ -z "${major_filter}" ]]; then
+    major_filter=".major == ${major}"
+  else
+    major_filter="${major_filter} or .major == ${major}"
+  fi
+done
+
+filter_expr="(.spec.images // []) | map(select(${major_filter}))"
+
+matching_count="$(yq eval "${filter_expr} | length" "${catalog_file}")"
+if [[ "${matching_count}" -eq 0 ]]; then
+  available_majors="$(yq eval '.spec.images[].major' "${catalog_file}" | paste -sd, -)"
+  echo "No matching images found for POSTGRES_VERSIONS='${versions_raw}' in ${catalog_file}" >&2
+  echo "Available majors: ${available_majors}" >&2
+  exit 1
+fi
+
+filtered_images="$(yq eval "${filter_expr}" "${catalog_file}")"
+
+tmp_file="$(mktemp)"
+trap 'rm -f "${tmp_file}"' EXIT
+
+# Keep the chart template header and replace the spec.images list content.
+# TODO: Do this in a less hacky way
+awk '
+  /^spec:$/ { print; getline; if ($0 ~ /^  images:$/) { print; exit } }
+  { print }
+' "${template_file}" > "${tmp_file}"
+
+printf '%s\n' "${filtered_images}" | sed 's/^/  /' >> "${tmp_file}"
+
+mv "${tmp_file}" "${template_file}"
+
+echo "Updated ${template_file} from ${catalog_file} with majors: ${majors_csv}"

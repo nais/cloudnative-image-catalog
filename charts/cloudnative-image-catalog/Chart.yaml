@@ -1,0 +1,8 @@
+apiVersion: v2
+name: cloudnative-image-catalog
+description: Publish a ClusterImageCatalog for cloudnative-pg
+type: application
+version: 0.1.0
+sources:
+  - https://github.com/nais/cloudnative-image-catalog/tree/main/charts/cloudnative-image-catalog
+  - https://github.com/cloudnative-pg/artifacts

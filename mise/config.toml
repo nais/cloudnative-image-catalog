@@ -1,0 +1,7 @@
+[env]
+POSTGRES_VERSIONS = "18"
+IMAGE_TYPE = "minimal"
+DEBIAN_RELEASE = "trixie"
+
+[tools]
+yq = "latest"

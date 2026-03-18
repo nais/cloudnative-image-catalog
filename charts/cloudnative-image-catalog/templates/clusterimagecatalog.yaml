@@ -1,0 +1,10 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: ClusterImageCatalog
+metadata:
+  name: {{ include "cloudnative-image-catalog.fullname" . }}
+  labels:
+    {{- include "cloudnative-image-catalog.labels" . | nindent 4 }}
+spec:
+  images:
+  - major: 18
+    image: ghcr.io/cloudnative-pg/postgresql:18.3-202603181216-minimal-trixie@sha256:d526f80732df82e0cdebda7e6eafd43587f35d1605baab1fcf9fc8171e0b0d74
