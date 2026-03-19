@@ -92,16 +92,18 @@ jobs:
     runs-on: fasit-deploy
     permissions:
       id-token: write
+    strategy:
+      matrix:
+        tenant:
+          - ci-nais
+          - dev-nais
+        kind:
+          - management
+          - tenant
     steps:
       - uses: nais/fasit-deploy@v3 # ratchet:exclude
-        name: Deploy to tenant clusters
+        name: "Deploy to ${{ matrix.tenant }}:${{ matrix.kind }}"
         with:
           chart: oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature/cloudnative-image-catalog
           version: ${{ needs.setup.outputs.version }}
-          target: '{"kind": "tenant"}'
-      - uses: nais/fasit-deploy@v3 # ratchet:exclude
-        name: Deploy to management clusters
-        with:
-          chart: oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature/cloudnative-image-catalog
-          version: ${{ needs.setup.outputs.version }}
-          target: '{"kind": "management"}'
+          target: '{"kind": "${{ matrix.kind }}", "tenant": "${{ matrix.tenant }}"}'
