@@ -83,8 +83,8 @@ jobs:
             helm push "$chart" oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature
           done
 
-  rollout:
-    name: Rollout
+  deploy:
+    name: Deploy
     if: github.actor != 'dependabot[bot]' && github.ref == 'refs/heads/main'
     needs:
       - setup
@@ -101,9 +101,12 @@ jobs:
           - management
           - tenant
     steps:
-      - uses: nais/fasit-deploy@v3 # ratchet:exclude
+      - uses: nais/fasit-deploy@97187355184a7f0f4b7a36a2b49a86ce02240f7b # ratchet:nais/fasit-deploy@v4.0.0
         name: "Deploy to ${{ matrix.tenant }}:${{ matrix.kind }}"
         with:
           chart: oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature/cloudnative-image-catalog
           version: ${{ needs.setup.outputs.version }}
-          target: '{"kind": "${{ matrix.kind }}", "tenant": "${{ matrix.tenant }}"}'
+          targets: |
+            [
+              { "target": { "kind": "${{ matrix.kind }}", "tenant": "${{ matrix.tenant }}" } }
+            ]
