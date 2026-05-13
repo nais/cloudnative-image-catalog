@@ -101,7 +101,7 @@ jobs:
           - management
           - tenant
     steps:
-      - uses: nais/fasit-deploy@97187355184a7f0f4b7a36a2b49a86ce02240f7b # ratchet:nais/fasit-deploy@v4.0.0
+      - uses: nais/fasit-deploy@58a70a338b16dc646373c91724fc7e7522d085a4 # ratchet:nais/fasit-deploy@v4.0.1
         name: "Deploy to ${{ matrix.tenant }}:${{ matrix.kind }}"
         with:
           chart: oci://${{ env.GOOGLE_REGISTRY }}/nais-io/nais/feature/cloudnative-image-catalog
