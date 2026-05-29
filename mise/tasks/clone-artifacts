@@ -2,4 +2,11 @@
 # [MISE] description="Clone cloudnative-pg/artifacts to the artifacts directory. Used locally."
 # [MISE] outputs=["artifacts"]
 
-git clone git@github.com:cloudnative-pg/artifacts.git
+if [[ -d artifacts ]]; then
+  pushd artifacts
+  git pull --rebase
+  popd
+else
+  git clone git@github.com:cloudnative-pg/artifacts.git
+fi
+
