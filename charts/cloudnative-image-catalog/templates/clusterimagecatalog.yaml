@@ -7,24 +7,4 @@ metadata:
 spec:
   images:
   - major: 18
-    image: ghcr.io/cloudnative-pg/postgresql:18.3-202604270853-minimal-trixie@sha256:59e50a79185bfde76057bfbc13b1ab3dd282d67b1a9d6a464b6d5234a2324730
-    extensions:
-      - name: pg-crash
-        image:
-          reference: ghcr.io/cloudnative-pg/pg-crash:0.3-202604291250-18-trixie@sha256:d29ff643152b62187138615ed0454dd52c57018178fff22a0576807362dafe96
-      - name: pgaudit
-        image:
-          reference: ghcr.io/cloudnative-pg/pgaudit:18.0-202604291250-18-trixie@sha256:381d7e08e99dd8b59d93fe79de0d20dbf9a2a431ab516cc229c9fcdc1b365e85
-      - name: pgvector
-        image:
-          reference: ghcr.io/cloudnative-pg/pgvector:0.8.2-202604291250-18-trixie@sha256:5d80e59ae0b539d53fd6a35619f58e41eb8db8f1146cf01a91929b400ff453f0
-      - name: postgis
-        image:
-          reference: ghcr.io/cloudnative-pg/postgis-extension:3.6.3-202604291250-18-trixie@sha256:9bfd7b26d6d0e8a6ccf43a60a2320a2162e87cd29abd4d69312176eb1d711b44
-        ld_library_path:
-          - system
-        env:
-          - name: GDAL_DATA
-            value: ${image_root}/share/gdal
-          - name: PROJ_DATA
-            value: ${image_root}/share/proj
+    image: ghcr.io/cloudnative-pg/postgresql:18.4-202606151012-standard-trixie@sha256:7259c775ce18bdf668f17a68accb78e5bcc8074bbea9c8cdac974a8a8525a173

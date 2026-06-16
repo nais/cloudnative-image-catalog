@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-catalog_dir="artifacts/image-catalogs-extensions"
+catalog_dir="artifacts/image-catalogs"
 catalog_file="${catalog_dir}/catalog-${IMAGE_TYPE:?IMAGE_TYPE is required}-${DEBIAN_RELEASE:?DEBIAN_RELEASE is required}.yaml"
 template_file="charts/cloudnative-image-catalog/templates/clusterimagecatalog.yaml"
 versions_raw="${POSTGRES_VERSIONS:?POSTGRES_VERSIONS is required}"

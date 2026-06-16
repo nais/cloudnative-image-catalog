@@ -1,6 +1,6 @@
 [env]
 POSTGRES_VERSIONS = "18"
-IMAGE_TYPE = "minimal"
+IMAGE_TYPE = "standard"
 DEBIAN_RELEASE = "trixie"
 
 [tools]
