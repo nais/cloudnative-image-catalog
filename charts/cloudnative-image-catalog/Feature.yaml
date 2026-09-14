@@ -1,4 +1,6 @@
 dependencies:
+  - allOf:
+    - cloudnative-pg
 environmentKinds:
   - management
   - tenant
