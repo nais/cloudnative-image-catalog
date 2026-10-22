@@ -11,9 +11,21 @@ extension_catalog="artifacts/image-catalogs-extensions/catalog-minimal-trixie.ya
 test_dir="$(mktemp -d "${PWD}/artifacts/catalog-test.XXXXXX")"
 trap 'rm -rf "${test_dir}"' EXIT
 
-bash mise/tasks/update-template
+awk '
+  /^```yaml[[:space:]]*$/ { if (blocks++) print "---"; in_yaml = 1; next }
+  /^```[[:space:]]*$/ { in_yaml = 0; next }
+  in_yaml { print }
+' "${root_dir}/README.md" | yq eval --exit-status 'tag == "!!map"' - > /dev/null
+
+mkdir -p "${test_dir}/artifacts/image-catalogs" "${test_dir}/artifacts/image-catalogs-extensions"
+cp -R charts "${test_dir}/charts"
+cp "${root_dir}/${base_catalog}" "${test_dir}/${base_catalog}"
+cp "${root_dir}/${extension_catalog}" "${test_dir}/${extension_catalog}"
+cd "${test_dir}"
+
+bash "${root_dir}/mise/tasks/update-template"
 cp "${template_file}" "${test_dir}/expected-template.yaml"
-bash mise/tasks/update-template
+bash "${root_dir}/mise/tasks/update-template"
 cmp "${test_dir}/expected-template.yaml" "${template_file}"
 
 helm lint charts/cloudnative-image-catalog
@@ -37,10 +49,6 @@ expected_base="$(yq '.spec.images[] | select(.major == 18) | .image' "${base_cat
 actual_extensions="$(yq -o=json -I=0 '.spec.images[0].extensions' "${test_dir}/rendered.yaml")"
 expected_extensions="$(yq -o=json -I=0 '[.spec.images[] | select(.major == 18) | .extensions[] | select(.name == "postgis" or .name == "timescaledb-oss")]' "${extension_catalog}")"
 [[ "${actual_extensions}" == "${expected_extensions}" ]]
-
-mkdir -p "${test_dir}/artifacts/image-catalogs" "${test_dir}/artifacts/image-catalogs-extensions" "${test_dir}/$(dirname "${template_file}")"
-cp "${template_file}" "${test_dir}/${template_file}"
-cd "${test_dir}"
 
 reset_catalogs() {
   cp "${root_dir}/${base_catalog}" "${base_catalog}"

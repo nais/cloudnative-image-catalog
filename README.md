@@ -63,15 +63,15 @@ For an operator supporting catalog extensions, the relevant Cluster fields are:
 
 ```yaml
 spec:
-	imageCatalogRef:
-		apiGroup: postgresql.cnpg.io
-		kind: ClusterImageCatalog
-		name: cloudnative-image-catalog
-		major: 18
-	postgresql:
-		extensions:
-			- name: postgis
-			- name: timescaledb-oss
+  imageCatalogRef:
+    apiGroup: postgresql.cnpg.io
+    kind: ClusterImageCatalog
+    name: cloudnative-image-catalog
+    major: 18
+  postgresql:
+    extensions:
+      - name: postgis
+      - name: timescaledb-oss
 ```
 
 Use the catalog name rendered by your Helm release if it differs from the
@@ -86,9 +86,9 @@ to `spec.postgresql.shared_preload_libraries`, preserving other preload entries:
 
 ```yaml
 spec:
-	postgresql:
-		shared_preload_libraries:
-			- timescaledb
+  postgresql:
+    shared_preload_libraries:
+      - timescaledb
 ```
 
 These are successive configuration fragments, not complete manifests. Do not
