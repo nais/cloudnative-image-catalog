@@ -7,4 +7,18 @@ metadata:
 spec:
   images:
   - major: 18
-    image: ghcr.io/cloudnative-pg/postgresql:18.4-202606151012-standard-trixie@sha256:7259c775ce18bdf668f17a68accb78e5bcc8074bbea9c8cdac974a8a8525a173
+    image: ghcr.io/cloudnative-pg/postgresql:18.6-202610190957-standard-trixie@sha256:d72ace96f5803b12c341bb5dac48532e8c1f92f69e8a717a59d779bfc038dea9
+    extensions:
+      - name: postgis
+        image:
+          reference: ghcr.io/cloudnative-pg/postgis-extension:3.6.4-202610191133-18-trixie@sha256:2401cbae15a15c0273cb437521c7e05ef8534fa30c17413bd886db7c531ae908
+        ld_library_path:
+          - system
+        env:
+          - name: GDAL_DATA
+            value: ${image_root}/share/gdal
+          - name: PROJ_DATA
+            value: ${image_root}/share/proj
+      - name: timescaledb-oss
+        image:
+          reference: ghcr.io/cloudnative-pg/timescaledb-oss:2.30.2-202610190726-18-trixie@sha256:ec7fbfc9e1055ac430b0c30a03f16431cdba4fae6c01f9ea18c76faaa577a183
