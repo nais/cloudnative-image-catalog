@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# [MISE] description="Test catalog generation, extension settings and Helm rendering"
+
+set -euo pipefail
+
+export POSTGRES_VERSIONS=18 IMAGE_TYPE=standard DEBIAN_RELEASE=trixie
+root_dir="${PWD}"
+template_file="charts/cloudnative-image-catalog/templates/clusterimagecatalog.yaml"
+base_catalog="artifacts/image-catalogs/catalog-standard-trixie.yaml"
+extension_catalog="artifacts/image-catalogs-extensions/catalog-minimal-trixie.yaml"
+test_dir="$(mktemp -d "${PWD}/artifacts/catalog-test.XXXXXX")"
+trap 'rm -rf "${test_dir}"' EXIT
+
+awk '
+  /^```yaml[[:space:]]*$/ { if (blocks++) print "---"; in_yaml = 1; next }
+  /^```[[:space:]]*$/ { in_yaml = 0; next }
+  in_yaml { print }
+' "${root_dir}/README.md" | yq eval --exit-status 'tag == "!!map"' - > /dev/null
+
+mkdir -p "${test_dir}/artifacts/image-catalogs" "${test_dir}/artifacts/image-catalogs-extensions"
+cp -R charts "${test_dir}/charts"
+cp "${root_dir}/${base_catalog}" "${test_dir}/${base_catalog}"
+cp "${root_dir}/${extension_catalog}" "${test_dir}/${extension_catalog}"
+cd "${test_dir}"
+
+bash "${root_dir}/mise/tasks/update-template"
+cp "${template_file}" "${test_dir}/expected-template.yaml"
+bash "${root_dir}/mise/tasks/update-template"
+cmp "${test_dir}/expected-template.yaml" "${template_file}"
+
+helm lint charts/cloudnative-image-catalog
+helm template cloudnative-image-catalog charts/cloudnative-image-catalog > "${test_dir}/rendered.yaml"
+
+assert_catalog() {
+  yq eval --exit-status "$1" "${test_dir}/rendered.yaml" > /dev/null
+}
+
+assert_catalog '.kind == "ClusterImageCatalog" and (.spec.images | length) == 1 and .spec.images[0].major == 18'
+assert_catalog '.spec.images[0].image | test(":18\\.[^@]+-standard-trixie@sha256:[a-f0-9]{64}$")'
+assert_catalog '.spec.images[0].extensions | map(.name) | sort | join(",") == "postgis,timescaledb-oss"'
+assert_catalog '.spec.images[0].extensions[] | select(.name == "postgis") | .ld_library_path | join(",") == "system"'
+assert_catalog '.spec.images[0].extensions[] | select(.name == "postgis") | .env | map(select(.name == "GDAL_DATA" and .value == "${image_root}/share/gdal")) | length == 1'
+assert_catalog '.spec.images[0].extensions[] | select(.name == "postgis") | .env | map(select(.name == "PROJ_DATA" and .value == "${image_root}/share/proj")) | length == 1'
+assert_catalog '.spec.images[0].extensions | map(select(.image.reference | test("-18-trixie@sha256:[a-f0-9]{64}$"))) | length == 2'
+
+actual_base="$(yq '.spec.images[0].image' "${test_dir}/rendered.yaml")"
+expected_base="$(yq '.spec.images[] | select(.major == 18) | .image' "${base_catalog}")"
+[[ "${actual_base}" == "${expected_base}" ]]
+actual_extensions="$(yq -o=json -I=0 '.spec.images[0].extensions' "${test_dir}/rendered.yaml")"
+expected_extensions="$(yq -o=json -I=0 '[.spec.images[] | select(.major == 18) | .extensions[] | select(.name == "postgis" or .name == "timescaledb-oss")]' "${extension_catalog}")"
+[[ "${actual_extensions}" == "${expected_extensions}" ]]
+
+reset_catalogs() {
+  cp "${root_dir}/${base_catalog}" "${base_catalog}"
+  cp "${root_dir}/${extension_catalog}" "${extension_catalog}"
+}
+
+expect_failure() {
+  cp "${template_file}" before.yaml
+  if bash "${root_dir}/mise/tasks/update-template" > failure.log 2>&1; then
+    echo "Expected generation to fail: $*" >&2
+    exit 1
+  fi
+  if ! grep -Fq "$1" failure.log; then
+    cat failure.log >&2
+    exit 1
+  fi
+  cmp before.yaml "${template_file}"
+}
+
+reset_catalogs
+POSTGRES_VERSIONS='18, 18' bash "${root_dir}/mise/tasks/update-template"
+cmp "${template_file}" "${test_dir}/expected-template.yaml"
+POSTGRES_VERSIONS=invalid expect_failure 'Invalid major version'
+POSTGRES_VERSIONS=',' expect_failure 'did not contain any valid major versions'
+POSTGRES_VERSIONS=99 expect_failure 'No matching images'
+POSTGRES_VERSIONS=18,99 expect_failure 'Expected one PostgreSQL image'
+POSTGRES_VERSIONS=17 expect_failure 'Expected one PostgreSQL image'
+
+for extension_name in postgis timescaledb-oss; do
+  reset_catalogs
+  yq -i "del(.spec.images[].extensions[] | select(.name == \"${extension_name}\"))" "${extension_catalog}"
+  expect_failure "Expected one ${extension_name} definition"
+
+  reset_catalogs
+  yq -i "(.spec.images[] | select(.major == 18) | .extensions) += [.spec.images[] | select(.major == 18) | .extensions[] | select(.name == \"${extension_name}\")]" "${extension_catalog}"
+  expect_failure "Expected one ${extension_name} definition"
+
+  for invalid_reference in 'example:latest' 'example:1-17-trixie@sha256:' 'example:1-18-bookworm@sha256:'; do
+    reset_catalogs
+    INVALID_REFERENCE="${invalid_reference}" yq -i "(.spec.images[].extensions[] | select(.name == \"${extension_name}\") | .image.reference) = strenv(INVALID_REFERENCE)" "${extension_catalog}"
+    expect_failure 'Incompatible or unpinned extension image'
+  done
+done
+
+reset_catalogs
+yq -i '(.spec.images[] | select(.major == 18) | .image) = "example:latest"' "${base_catalog}"
+expect_failure 'Invalid or unpinned PostgreSQL image'
+reset_catalogs
+rm "${extension_catalog}"
+expect_failure 'Extension catalog file not found'
+
+echo 'Catalog tests passed, including upstream equality, PostGIS settings, failure safety and regeneration stability'
