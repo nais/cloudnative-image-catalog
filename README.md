@@ -32,23 +32,23 @@ a second generation is byte-identical. CI runs these checks before packaging.
 ## Compatibility and prerequisites
 
 - **CloudNativePG 1.29 or later**, including matching CRDs, is required for
-	selecting extension images from an image catalog. ImageVolume support in CNPG
-	1.27/1.28 alone is not sufficient for catalog-based selection.
+  selecting extension images from an image catalog. ImageVolume support in CNPG
+  1.27/1.28 alone is not sufficient for catalog-based selection.
 - PostgreSQL 18 provides `extension_control_path`. All three images must match
-	the PostgreSQL major version, Debian distribution and node architecture.
+  the PostgreSQL major version, Debian distribution and node architecture.
 - Checked against GHCR on 2026-10-22: PostgreSQL 18.6 standard-trixie, PostGIS
-	3.6.4 for PG18/Trixie and TimescaleDB OSS 2.30.2 for PG18/Trixie all publish
-	`linux/amd64` and `linux/arm64` manifests. Extension labels confirm major 18
-	and Trixie. Upstream's standard image extends its minimal image, so the
-	extension catalog's minimal origin does not require switching image variant.
-	This verifies metadata compatibility, not runtime loading; future upstream
-	updates require the same checks.
+  3.6.4 for PG18/Trixie and TimescaleDB OSS 2.30.2 for PG18/Trixie all publish
+  `linux/amd64` and `linux/arm64` manifests. Extension labels confirm major 18
+  and Trixie. Upstream's standard image extends its minimal image, so the
+  extension catalog's minimal origin does not require switching image variant.
+  This verifies metadata compatibility, not runtime loading; future upstream
+  updates require the same checks.
 - Kubernetes must support image volumes: 1.35+, or 1.33/1.34 with the
-	`ImageVolume` feature gate enabled, according to the linked CNPG documentation.
-	A compatible runtime is also required, such as containerd 2.1+ or CRI-O 1.31+.
+  `ImageVolume` feature gate enabled, according to the linked CNPG documentation.
+  A compatible runtime is also required, such as containerd 2.1+ or CRI-O 1.31+.
 - Nodes must be able to pull the pinned images from GHCR. Operator/CRD versions,
-	feature gates, runtime support and registry access have **not** been verified
-	in our running environments.
+  feature gates, runtime support and registry access have **not** been verified
+  in our running environments.
 
 See upstream's [catalog compatibility](https://github.com/cloudnative-pg/cloudnative-pg/blob/main/docs/src/image_catalog.md)
 and [ImageVolume requirements](https://cloudnative-pg.io/docs/1.28/imagevolume_extensions/).
@@ -115,15 +115,15 @@ functionality.
 ## Follow-up outside this repository
 
 - pgrator must map requested extensions to catalog identifiers, preserve catalog
-	settings, configure TimescaleDB preload in the correct rollout order, and
-	manage SQL installation/version upgrades in each database.
+  settings, configure TimescaleDB preload in the correct rollout order, and
+  manage SQL installation/version upgrades in each database.
 - The platform must verify that the installed CNPG operator and CRDs support
-	catalog extensions, plus Kubernetes feature gates, runtime support and GHCR
-	access on all relevant node pools.
+  catalog extensions, plus Kubernetes feature gates, runtime support and GHCR
+  access on all relevant node pools.
 - Test in a non-production cluster: mounts, resolved paths/environment, restarts,
-	`CREATE EXTENSION`, `SELECT PostGIS_Full_Version()`, a PostGIS coordinate
-	transformation, and TimescaleDB hypertable creation/inserts. Test failover,
-	image updates, SQL extension upgrades and backup/restore before production use.
+  `CREATE EXTENSION`, `SELECT PostGIS_Full_Version()`, a PostGIS coordinate
+  transformation, and TimescaleDB hypertable creation/inserts. Test failover,
+  image updates, SQL extension upgrades and backup/restore before production use.
 
 These runtime checks have not been performed by the local generation and Helm
 tests. Updating catalog images can roll PostgreSQL pods; it does not perform
