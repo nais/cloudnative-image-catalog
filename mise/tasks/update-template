@@ -1,16 +1,21 @@
-#!/usr/bin/bash
+#!/usr/bin/env bash
 # [MISE] description="Update the clusterimagecatalog in the chart with values from the cloudnative-pg artifacts"
-# [MISE] outputs=["charts/cloudnative-image-catalog/templates/clusterimagecatalog.yaml"]
 
 set -euo pipefail
 
 catalog_dir="artifacts/image-catalogs"
 catalog_file="${catalog_dir}/catalog-${IMAGE_TYPE:?IMAGE_TYPE is required}-${DEBIAN_RELEASE:?DEBIAN_RELEASE is required}.yaml"
+extension_catalog_file="artifacts/image-catalogs-extensions/catalog-minimal-${DEBIAN_RELEASE}.yaml"
 template_file="charts/cloudnative-image-catalog/templates/clusterimagecatalog.yaml"
 versions_raw="${POSTGRES_VERSIONS:?POSTGRES_VERSIONS is required}"
 
 if [[ ! -f "${catalog_file}" ]]; then
   echo "Catalog file not found: ${catalog_file}" >&2
+  exit 1
+fi
+
+if [[ ! -f "${extension_catalog_file}" ]]; then
+  echo "Extension catalog file not found: ${extension_catalog_file}" >&2
   exit 1
 fi
 
@@ -60,7 +65,37 @@ fi
 
 filtered_images="$(yq eval "${filter_expr}" "${catalog_file}")"
 
-tmp_file="$(mktemp)"
+for major in "${majors[@]}"; do
+  base_count="$(printf '%s\n' "${filtered_images}" | yq eval "map(select(.major == ${major})) | length" -)"
+  if [[ "${base_count}" -ne 1 || "${major}" -lt 18 ]]; then
+    echo "Expected one PostgreSQL image with extension support for major ${major}" >&2
+    exit 1
+  fi
+
+  base_image="$(printf '%s\n' "${filtered_images}" | yq eval ".[] | select(.major == ${major}) | .image" -)"
+  if [[ ! "${base_image}" =~ :${major}\.[^@]+-${IMAGE_TYPE}-${DEBIAN_RELEASE}@sha256:[a-f0-9]{64}$ ]]; then
+    echo "Invalid or unpinned PostgreSQL image: ${base_image}" >&2
+    exit 1
+  fi
+
+  extension_filter=".spec.images[] | select(.major == ${major}) | .extensions[] | select(.name == \"postgis\" or .name == \"timescaledb-oss\")"
+  extensions="$(yq eval "[${extension_filter}]" "${extension_catalog_file}")"
+  for extension_name in postgis timescaledb-oss; do
+    extension_count="$(printf '%s\n' "${extensions}" | yq eval "map(select(.name == \"${extension_name}\")) | length" -)"
+    if [[ "${extension_count}" -ne 1 ]]; then
+      echo "Expected one ${extension_name} definition for PostgreSQL ${major} in ${extension_catalog_file}" >&2
+      exit 1
+    fi
+    extension_image="$(printf '%s\n' "${extensions}" | yq eval ".[] | select(.name == \"${extension_name}\") | .image.reference" -)"
+    if [[ ! "${extension_image}" =~ -${major}-${DEBIAN_RELEASE}@sha256:[a-f0-9]{64}$ ]]; then
+      echo "Incompatible or unpinned extension image: ${extension_image}" >&2
+      exit 1
+    fi
+  done
+  filtered_images="$(EXTENSIONS="${extensions}" yq eval "( .[] | select(.major == ${major}) | .extensions ) = (strenv(EXTENSIONS) | from_yaml)" - <<< "${filtered_images}")"
+done
+
+tmp_file="$(mktemp "${template_file}.XXXXXX")"
 trap 'rm -f "${tmp_file}"' EXIT
 
 # Keep the chart template header and replace the spec.images list content.
