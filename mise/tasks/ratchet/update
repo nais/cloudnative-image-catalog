@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# [MISE] description="Update GitHub Actions pins within their version tags"
+
+set -euo pipefail
+
+ratchet update .github/workflows/*.yml

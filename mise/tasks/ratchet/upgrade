@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# [MISE] description="Upgrade GitHub Actions to their latest versions"
+
+set -euo pipefail
+
+ratchet upgrade .github/workflows/*.yml
