@@ -46,7 +46,7 @@ jobs:
         with:
           repository: cloudnative-pg/artifacts
           path: artifacts
-      - uses: jdx/mise-action@6612f0ef07ed2a736cd1e00a94a065522dd41195 # ratchet:jdx/mise-action@v5.2.5
+      - uses: jdx/mise-action@b44d12e7d0d8ee7461bb893e1b1993500433185b # ratchet:jdx/mise-action@v5.2.7
       - name: Update template
         run: mise run update-template
       - id: "auth"
